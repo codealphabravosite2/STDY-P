@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAFAFA">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Elite Study Hub</title>
+    
+    <!-- Premium Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- PDF Renderer Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root {
+            /* --- PREMIUM PALETTE --- */
+            --bg-body: #FAFAFA;
+            --surface: #FFFFFF;
+            --text-main: #111827;
+            --text-sub: #6B7280;
+            --text-light: #9CA3AF;
+            --border: #E5E7EB;
+            
+            /* Brand Color */
+            --primary: #2563EB;
+            --primary-active: #1D4ED8;
+            --primary-shadow: rgba(37, 99, 235, 0.3);
+
+            /* Accents */
+            --danger: #EF4444;
+            
+            /* Subject Theme Colors */
+            --theme-phy-bg: #FEF2F2; --theme-phy-tx: #991B1B;
+            --theme-chem-bg: #ECFEFF; --theme-chem-tx: #155E75;
+            --theme-math-bg: #FFFBEB; --theme-math-tx: #92400E;
+            --theme-gen-bg: #F0FDF4; --theme-gen-tx: #166534;
+            --theme-eng-bg: #F5F3FF; --theme-eng-tx: #5B21B6;
+        }
+
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        /* --- HEADER --- */
+        header {
+            height: 60px;
+            padding: 0 20px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            z-index: 50; flex-shrink: 0;
+        }
+
+        .header-title { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+        .btn-back { background: transparent; border: none; padding: 10px; margin-left: -10px; display: flex; color: var(--text-main); cursor: pointer; }
+        
+        /* --- MAIN LAYOUT --- */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 100px; /* Space for FAB */
+            scroll-behavior: smooth;
+        }
+        
+        /* Locking scroll when Modal is open */
+        body.locked { overflow: hidden; }
+
+        /* --- SEARCH --- */
+        .search-container { position: relative; margin-bottom: 24px; }
+        .search-input {
+            width: 100%;
+            padding: 14px 14px 14px 44px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            font-size: 0.95rem;
+            font-family: inherit;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+        }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-shadow); }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+
+        /* --- GRID (Dashboard) --- */
+        h2 { font-size: 0.8rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin: 24px 0 12px 0; letter-spacing: 0.05em; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 16px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            transition: transform 0.1s, background 0.1s;
+            cursor: pointer;
+        }
+        .card:active { transform: scale(0.97); background: #fafafa; }
+        
+        .card-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 10px;
+        }
+        .card-icon svg { width: 24px; height: 24px; stroke-width: 2px; }
+
+        .card span { font-weight: 600; font-size: 0.95rem; }
+        .card small { font-size: 0.75rem; color: var(--text-light); margin-top: 4px; }
+
+        /* --- LIST (Notes) --- */
+        .list-container { display: flex; flex-direction: column; gap: 10px; }
+        
+        .note-item {
+            background: var(--surface);
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            transition: transform 0.1s;
+            cursor: pointer;
+        }
+        .note-item:active { transform: scale(0.98); }
+
+        .note-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+        .file-box {
+            width: 40px; height: 40px; background: #F3F4F6; color: #6B7280;
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        }
+        
+        .note-info h3 { margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-meta { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-sub); }
+        .tag { padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .btn-trash {
+            background: transparent; border: none;
+            padding: 12px; margin-right: -8px;
+            color: var(--text-light); cursor: pointer;
+        }
+        .btn-trash:active { color: var(--danger); }
+
+        /* --- FAB --- */
+        .fab {
+            position: fixed; bottom: 30px; right: 24px;
+            width: 60px; height: 60px;
+            background: var(--primary);
+            color: white; border: none; border-radius: 30px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 100;
+            transition: transform 0.2s;
+        }
+        .fab:active { transform: scale(0.9); }
+        .fab svg { pointer-events: none; } 
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(3px);
+            z-index: 1000;
+            display: flex; align-items: flex-end; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+        .modal {
+            background: var(--surface);
+            width: 100%; max-width: 600px;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .modal-overlay.open .modal { transform: translateY(0); }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-sub); margin-bottom: 8px; text-transform: uppercase; }
+        .form-input {
+            width: 100%; padding: 14px;
+            border: 1px solid var(--border); border-radius: 12px;
+            background: var(--bg-body); font-size: 1rem;
+            font-family: inherit; -webkit-appearance: none;
+        }
+        
+        .btn-save {
+            width: 100%; padding: 16px;
+            background: var(--primary); color: white;
+            border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 600;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+            cursor: pointer;
+        }
+        .btn-save:active { background: var(--primary-active); }
+
+        /* --- CUSTOM PDF VIEWER (Replacing Iframe) --- */
+        .pdf-viewer {
+            position: fixed; inset: 0;
+            background: #111; z-index: 2000;
+            display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s ease;
+        }
+        .pdf-viewer.open { transform: translateY(0); }
+
+        .viewer-header {
+            height: 56px; background: #1F2937;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px; border-bottom: 1px solid #374151; color: white;
+        }
+        .viewer-title { font-size: 0.95rem; font-weight: 500; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .btn-viewer-close { background: none; border: none; color: #9CA3AF; font-size: 0.9rem; cursor: pointer; }
+        .btn-viewer-native {
+            background: white; color: black; text-decoration: none;
+            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+        }
+
+        /* Canvas Container */
+        #pdf-wrapper {
+            flex: 1; overflow: auto; display: flex; flex-direction: column; align-items: center;
+            padding: 10px; background: #000; position: relative;
+        }
+        canvas {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            max-width: 100%; height: auto;
+        }
+
+        /* PDF Navigation Controls */
+        .pdf-controls {
+            height: 60px; background: #1F2937; color: white;
+            display: flex; align-items: center; justify-content: center; gap: 20px;
+        }
+        .pdf-nav-btn {
+            background: #374151; color: white; border: none;
+            width: 40px; height: 40px; border-radius: 20px;
+            font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .pdf-page-num { font-variant-numeric: tabular-nums; font-size: 0.9rem; color: #D1D5DB; }
+
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        .empty { text-align: center; padding: 40px; color: var(--text-light); }
+        
+        /* Themes */
+        .t-phy { background: var(--theme-phy-bg); color: var(--theme-phy-tx); }
+        .t-chem { background: var(--theme-chem-bg); color: var(--theme-chem-tx); }
+        .t-math { background: var(--theme-math-bg); color: var(--theme-math-tx); }
+        .t-gen { background: var(--theme-gen-bg); color: var(--theme-gen-tx); }
+        .t-eng { background: var(--theme-eng-bg); color: var(--theme-eng-tx); }
+
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div style="display:flex; align-items:center;">
+            <button id="btn-back" class="btn-back hidden" onclick="goHome()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span id="page-title" class="header-title">Study Hub</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard">
+            <div class="search-container">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="inp-search" class="search-input" placeholder="Search chapters..." onkeyup="handleSearch()" autocomplete="off">
+            </div>
+
+            <div id="dashboard-content">
+                <h2>Subjects</h2>
+                <div class="grid">
+                    <!-- Physics: Atom Icon -->
+                    <div class="card" onclick="openSubject('Physics')">
+                        <div class="card-icon t-phy">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        </div>
+                        <span>Physics</span>
+                        <small id="c-Physics">0 Notes</small>
+                    </div>
+                    
+                    <!-- Chemistry: Flask Icon -->
+                    <div class="card" onclick="openSubject('Chemistry')">
+                        <div class="card-icon t-chem">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 2v7.31"/><path d="M14 2v7.31"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/></svg>
+                        </div>
+                        <span>Chemistry</span>
+                        <small id="c-Chemistry">0 Notes</small>
+                    </div>
+
+                    <!-- Maths: Ruler Icon -->
+                    <div class="card" onclick="openSubject('Mathematics')">
+                        <div class="card-icon t-math">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 7l6 10M9 17l6-10"/></svg>
+                        </div>
+                        <span>Maths</span>
+                        <small id="c-Mathematics">0 Notes</small>
+                    </div>
+
+                    <!-- General: Brain/Block Icon -->
+                    <div class="card" onclick="openSubject('General Test')">
+                        <div class="card-icon t-gen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path></svg>
+                        </div>
+                        <span>General</span>
+                        <small id="c-General Test">0 Notes</small>
+                    </div>
+
+                    <!-- English: Book Icon -->
+                    <div class="card" onclick="openSubject('English')">
+                        <div class="card-icon t-eng">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        </div>
+                        <span>English</span>
+                        <small id="c-English">0 Notes</small>
+                    </div>
+                </div>
+
+                <h2>Jump Back In</h2>
+                <div id="list-recent" class="list-container"></div>
+            </div>
+            
+            <div id="search-results" class="hidden list-container"></div>
+        </div>
+
+        <!-- SUBJECT VIEW -->
+        <div id="view-list" class="hidden">
+            <div id="list-subject" class="list-container"></div>
+        </div>
+    </main>
+
+    <!-- FAB -->
+    <button id="fab-add" class="fab" onclick="toggleModal(true)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+
+    <!-- UPLOAD MODAL -->
+    <div id="modal-overlay" class="modal-overlay" onclick="if(event.target === this) toggleModal(false)">
+        <div class="modal">
+            <h3 style="margin: 0 0 20px 0; font-size: 1.1rem;">Add New Note</h3>
+            
+            <div class="form-group">
+                <label class="form-label">Subject</label>
+                <select id="new-sub" class="form-input">
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="General Test">General Test</option>
+                    <option value="English">English</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Chapter Name</label>
+                <input type="text" id="new-chap" class="form-input" placeholder="e.g. Thermodynamics" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">PDF File</label>
+                <input type="file" id="new-file" class="form-input" accept="application/pdf">
+            </div>
+
+            <button id="btn-save" class="btn-save" onclick="saveNote()">Save to Library</button>
+            <p id="msg-loading" class="hidden" style="text-align:center; color: var(--primary); margin-top:10px;">Processing...</p>
+        </div>
+    </div>
+
+    <!-- CUSTOM PDF VIEWER -->
+    <div id="pdf-viewer" class="pdf-viewer">
+        <div class="viewer-header">
+            <button class="btn-viewer-close" onclick="closePDF()">Close</button>
+            <span id="pdf-title" class="viewer-title">Document</span>
+            <a id="pdf-native" href="#" target="_blank" class="btn-viewer-native">Native App</a>
+        </div>
+        
+        <!-- Canvas wrapper -->
+        <div id="pdf-wrapper">
+            <canvas id="pdf-canvas"></canvas>
+            <p id="pdf-loading-text" style="color:#666; margin-top:50px;">Rendering PDF...</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="pdf-controls">
+            <button class="pdf-nav-btn" onclick="changePage(-1)">‹</button>
+            <span class="pdf-page-num">Page <span id="page-num">0</span> / <span id="page-count">0</span></span>
+            <button class="pdf-nav-btn" onclick="changePage(1)">›</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const DB_NAME = 'EliteStudy_Premium'; 
+        const DB_VERSION = 1;
+        let db;
+        
+        // PDF State
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pdfRendering = false;
+        let pageNumPending = null;
+        let state = { currentSubject: null, blobUrl: null };
+
+        // PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const themes = {
+            'Physics': 't-phy',
+            'Chemistry': 't-chem',
+            'Mathematics': 't-math',
+            'General Test': 't-gen',
+            'English': 't-eng'
+        };
+
+        // --- DATABASE ---
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains('notes')) {
+                        db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                req.onerror = () => reject("DB Error");
+            });
+        }
+
+        async function dbOp(action, data) {
+            return new Promise((resolve) => {
+                const tx = db.transaction(['notes'], 'readwrite');
+                const store = tx.objectStore('notes');
+                let req;
+                if(action === 'add') req = store.add(data);
+                if(action === 'getAll') req = store.getAll();
+                if(action === 'delete') req = store.delete(data);
+                if(action === 'get') req = store.get(data);
+                if(action === 'put') req = store.put(data);
+                req.onsuccess = () => resolve(req.result);
+            });
+        }
+
+        // --- APP LOGIC ---
+        window.onload = async () => {
+            await initDB();
+            renderDashboard();
+        };
+
+        function goHome() {
+            state.currentSubject = null;
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            document.getElementById('view-list').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('page-title').innerText = "Study Hub";
+            document.getElementById('inp-search').value = "";
+            handleSearch(); 
+            renderDashboard(); 
+        }
+
+        async function openSubject(subject) {
+            state.currentSubject = subject;
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-list').classList.remove('hidden');
+            document.getElementById('btn-back').classList.remove('hidden');
+            document.getElementById('page-title').innerText = subject;
+
+            const list = document.getElementById('list-subject');
+            list.innerHTML = '<div class="empty">Loading...</div>';
+
+            const allNotes = await dbOp('getAll');
+            const filtered = allNotes.filter(n => n.subject === subject)
+                                     .sort((a,b) => a.chapter.localeCompare(b.chapter));
+
+            list.innerHTML = '';
+            if(filtered.length === 0) list.innerHTML = '<div class="empty">No notes here yet.<br>Tap + to upload.</div>';
+            else filtered.forEach(note => list.appendChild(createNoteItem(note, false)));
+        }
+
+        async function renderDashboard() {
+            const allNotes = await dbOp('getAll');
+            
+            // Counts
+            const counts = {};
+            allNotes.forEach(n => counts[n.subject] = (counts[n.subject] || 0) + 1);
+            for(const [sub, count] of Object.entries(counts)) {
+                const el = document.getElementById(`c-${sub}`);
+                if(el) el.innerText = `${count} Notes`;
+            }
+
+            // Recents
+            const list = document.getElementById('list-recent');
+            list.innerHTML = '';
+            const recents = allNotes.sort((a,b) => b.lastOpened - a.lastOpened).slice(0, 5);
+
+            if(recents.length === 0) list.innerHTML = '<div class="empty">No documents recently opened.</div>';
+            else recents.forEach(note => list.appendChild(createNoteItem(note, true)));
+        }
+
+        function createNoteItem(note, showTag) {
+            const div = document.createElement('div');
+            div.className = 'note-item';
+            div.onclick = (e) => {
+                if(!e.target.closest('.btn-trash')) openPDF(note.id);
+            };
+
+            const theme = themes[note.subject] || 't-gen';
+            const date = new Date(note.date).toLocaleDateString(undefined, { month:'short', day:'numeric'});
+
+            div.innerHTML = `
+                <div class="note-left">
+                    <div class="file-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    </div>
+                    <div class="note-info">
+                        <h3>${note.chapter}</h3>
+                        <div class="note-meta">
+                            ${showTag ? `<span class="tag ${theme}">${note.subject}</span>` : ''}
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-trash" onclick="deleteNote(${note.id})">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            `;
+            return div;
+        }
+
+        async function handleSearch() {
+            const q = document.getElementById('inp-search').value.toLowerCase();
+            const dashContent = document.getElementById('dashboard-content');
+            const searchResults = document.getElementById('search-results');
+            
+            if(!q) {
+                dashContent.classList.remove('hidden');
+                searchResults.classList.add('hidden');
+                return;
+            }
+
+            dashContent.classList.add('hidden');
+            searchResults.classList.remove('hidden');
+            searchResults.innerHTML = '';
+
+            const allNotes = await dbOp('getAll');
+            const res = allNotes.filter(n => n.chapter.toLowerCase().includes(q) || n.subject.toLowerCase().includes(q));
+
+            if(res.length === 0) searchResults.innerHTML = '<div class="empty">No results found.</div>';
+            else res.forEach(n => searchResults.appendChild(createNoteItem(n, true)));
+        }
+
+        // --- MODAL ---
+        function toggleModal(show) {
+            const modal = document.getElementById('modal-overlay');
+            if(show) {
+                modal.classList.add('open');
+                if(state.currentSubject) document.getElementById('new-sub').value = state.currentSubject;
+            } else {
+                modal.classList.remove('open');
+            }
+        }
+
+        async function saveNote() {
+            const sub = document.getElementById('new-sub').value;
+            const chap = document.getElementById('new-chap').value;
+            const fileEl = document.getElementById('new-file');
+
+            if(!chap || fileEl.files.length === 0) return alert("Please fill all fields");
+            if(fileEl.files[0].type !== 'application/pdf') return alert("PDF files only");
+
+            document.getElementById('btn-save').classList.add('hidden');
+            document.getElementById('msg-loading').classList.remove('hidden');
+
+            try {
+                await dbOp('add', {
+                    subject: sub,
+                    chapter: chap,
+                    file: fileEl.files[0],
+                    date: Date.now(),
+                    lastOpened: Date.now()
+                });
+                toggleModal(false);
+                document.getElementById('new-chap').value = '';
+                fileEl.value = '';
+                document.getElementById('btn-save').classList.remove('hidden');
+                document.getElementById('msg-loading').classList.add('hidden');
+
+                if(state.currentSubject === sub) openSubject(sub);
+                else if(!state.currentSubject) renderDashboard();
+            } catch(e) {
+                alert("Storage Error: File too large.");
+                document.getElementById('btn-save').classList.remove('hidden');
+                document.getElementById('msg-loading').classList.add('hidden');
+            }
+        }
+
+        async function deleteNote(id) {
+            if(confirm("Delete this note?")) {
+                await dbOp('delete', id);
+                if(state.currentSubject) openSubject(state.currentSubject);
+                else renderDashboard();
+            }
+        }
+
+        // --- NEW PDF RENDERING LOGIC (PDF.js) ---
+        async function openPDF(id) {
+            const note = await dbOp('get', id);
+            if(!note) return;
+
+            note.lastOpened = Date.now();
+            dbOp('put', note);
+
+            // Create Blob URL for native view
+            if(state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+            state.blobUrl = URL.createObjectURL(note.file);
+            document.getElementById('pdf-native').href = state.blobUrl;
+
+            // UI Setup
+            document.getElementById('pdf-title').innerText = note.chapter;
+            document.getElementById('pdf-viewer').classList.add('open');
+            document.body.classList.add('locked');
+            document.getElementById('pdf-loading-text').classList.remove('hidden');
+            document.getElementById('pdf-canvas').classList.add('hidden');
+
+            // Read File for Renderer
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const typedarray = new Uint8Array(evt.target.result);
+                startRender(typedarray);
+            };
+            reader.readAsArrayBuffer(note.file);
+        }
+
+        function startRender(data) {
+            const loadingTask = pdfjsLib.getDocument(data);
+            loadingTask.promise.then(function(pdf) {
+                pdfDoc = pdf;
+                document.getElementById('page-count').textContent = pdf.numPages;
+                pageNum = 1;
+                renderPage(pageNum);
+                document.getElementById('pdf-loading-text').classList.add('hidden');
+                document.getElementById('pdf-canvas').classList.remove('hidden');
+            });
+        }
+
+        function renderPage(num) {
+            pdfRendering = true;
+            pdfDoc.getPage(num).then(function(page) {
+                const canvas = document.getElementById('pdf-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Scale to fit width
+                const wrapperWidth = document.getElementById('pdf-wrapper').clientWidth;
+                const baseViewport = page.getViewport({scale: 1});
+                const scale = (wrapperWidth / baseViewport.width) * 1.5; // 1.5 for sharpness
+                
+                const viewport = page.getViewport({scale: scale});
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+
+                renderTask.promise.then(function() {
+                    pdfRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+            document.getElementById('page-num').textContent = num;
+        }
+
+        function queueRenderPage(num) {
+            if (pdfRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function changePage(offset) {
+            if(offset === -1 && pageNum <= 1) return;
+            if(offset === 1 && pageNum >= pdfDoc.numPages) return;
+            pageNum += offset;
+            queueRenderPage(pageNum);
+        }
+
+        function closePDF() {
+            document.getElementById('pdf-viewer').classList.remove('open');
+            document.body.classList.remove('locked');
+            if(!state.currentSubject) renderDashboard();
+            
+            // Cleanup
+            pdfDoc = null;
+            pageNum = 1;
+        }
+
+    </script>
+</body>
+</html>
